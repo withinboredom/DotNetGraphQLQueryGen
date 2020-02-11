@@ -17,14 +17,14 @@ namespace dotnet_gqlgen
             this.schemaInfo = new SchemaInfo(typeMappings);
         }
 
-        public override object VisitFieldDef(GraphQLSchemaParser.FieldDefContext context)
+        public override object VisitFieldsDefinition(GraphQLSchemaParser.FieldsDefinitionContext context)
         {
-            var result = base.VisitFieldDef(context);
-            var docComment = context.comment().LastOrDefault();
-            var desc = docComment != null ? (string)VisitComment(docComment) : null;
-            var name = context.name.Text;
-            var args = (List<Arg>)VisitArguments(context.args);
-            var type = context.type.GetText();
+            var result = base.VisitFieldsDefinition(context);
+            var docComment = context.description();
+            var desc = docComment != null ? (string)VisitDescription(docComment) : null;
+            var name = context.NAME().GetText();
+            var args = context.argumentsDefinition() == null ? null : (List<Arg>)VisitArgumentsDefinition(context.argumentsDefinition());
+            var type = context.type_().GetText();
             var isArray = type[0] == '[';
             type = type.Trim('[', ']');
             addFieldsTo.Add(new Field(this.schemaInfo)
@@ -38,6 +38,34 @@ namespace dotnet_gqlgen
             return result;
         }
 
+        /// <inheritdoc />
+        public override object VisitInputFieldsDefinition(GraphQLSchemaParser.InputFieldsDefinitionContext context)
+        {
+            return base.VisitInputFieldsDefinition(context);
+        }
+
+        /// <inheritdoc />
+        public override object VisitInputValueDefinition(GraphQLSchemaParser.InputValueDefinitionContext context)
+        {
+            var docComment = context.description();
+            var desc = docComment == null ? null : (string) VisitDescription(docComment);
+            var name = context.NAME().GetText();
+            var type = context.type_().typeName().GetText();
+            var isRequired = context.type_().nonNullType() != null;
+            var isArray = context.type_().listType() != null;
+
+            addFieldsTo.Add(new Field(schemaInfo)
+            {
+                Name = name,
+                Description = desc,
+                TypeName = type,
+                IsArray = isArray
+            });
+
+            return base.VisitInputValueDefinition(context);
+        }
+
+        /// <inheritdoc />
         public override object VisitArguments(GraphQLSchemaParser.ArgumentsContext context)
         {
             var args = new List<Arg>();
@@ -45,14 +73,14 @@ namespace dotnet_gqlgen
             {
                 foreach (var arg in context.argument())
                 {
-                    var type = arg.dataType().GetText();
+                    var type = arg.valueOrVariable().value().GetText();
                     var isArray = type[0] == '[';
                     type = type.Trim('[', ']');
                     args.Add(new Arg(this.schemaInfo)
                     {
                         Name = arg.NAME().GetText(),
                         TypeName = type,
-                        Required = arg.required != null,
+                        Required = arg != null,
                         IsArray = isArray
                     });
                 }
@@ -65,57 +93,96 @@ namespace dotnet_gqlgen
             this.addFieldsTo = item;
         }
 
-        public override object VisitComment(GraphQLSchemaParser.CommentContext context)
+        /// <inheritdoc />
+        public override object VisitDescription(GraphQLSchemaParser.DescriptionContext context)
         {
-            return context.GetText().Trim('"', ' ', '\t', '\n', '\r');
+            return context.GetText().Trim('"', ' ', '\t', '\n', '\r', '#');
         }
 
-        public override object VisitSchemaDef(GraphQLSchemaParser.SchemaDefContext context)
+        /// <inheritdoc />
+        public override object VisitSchemaDefinition(GraphQLSchemaParser.SchemaDefinitionContext context)
         {
             using (new FieldConsumer(this, schemaInfo.Schema))
             {
-                return base.VisitSchemaDef(context);
+                return base.Visit(context.rootOperationTypeDefinitionList());
             }
         }
-        public override object VisitEnumDef(GraphQLSchemaParser.EnumDefContext context)
-        {
-            var docComment = context.comment().LastOrDefault();
-            var desc = docComment != null ? (string)VisitComment(docComment) : null;
 
-            var result = base.VisitEnumDef(context);
-            return result;
-        }
-        public override object VisitInputDef(GraphQLSchemaParser.InputDefContext context)
+        /// <inheritdoc />
+        public override object VisitEnumValue(GraphQLSchemaParser.EnumValueContext context)
         {
-            var docComment = context.comment().LastOrDefault();
-            var desc = docComment != null ? (string)VisitComment(docComment) : null;
+            addFieldsTo.Add(new Field(schemaInfo) {Name = context.NAME().GetText()});
+            return base.VisitEnumValue(context);
+        }
+
+        /// <inheritdoc />
+        public override object VisitEnumTypeDefinition(GraphQLSchemaParser.EnumTypeDefinitionContext context)
+        {
+            var docComment = context.description();
+            var desc = docComment != null ? (string)VisitDescription(docComment) : null;
+
+            var nums = new List<Field>();
+            using (new FieldConsumer(this, nums))
+            {
+                var result = base.VisitEnumTypeDefinition(context);
+                schemaInfo.Enums.Add(context.NAME().GetText(), new TypeInfo(nums, context.NAME().GetText(), desc, isInput: false));
+                return result;
+            }
+        }
+
+        /// <inheritdoc />
+        public override object VisitInputObjectTypeDefinition(GraphQLSchemaParser.InputObjectTypeDefinitionContext context)
+        {
+            var docComment = context.description();
+            var desc = docComment != null ? (string)VisitDescription(docComment) : null;
 
             var fields = new List<Field>();
             using (new FieldConsumer(this, fields))
             {
-                var result = base.Visit(context.objectDef());
-                schemaInfo.Inputs.Add(context.typeName.Text, new TypeInfo(fields, context.typeName.Text, desc, isInput:true));
+                var result = base.Visit(context.inputFieldsDefinition());
+                schemaInfo.Inputs.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc, isInput:true));
                 return result;
             }
         }
-        public override object VisitTypeDef(GraphQLSchemaParser.TypeDefContext context)
+
+        /// <inheritdoc />
+        public override object VisitObjectTypeDefinition(GraphQLSchemaParser.ObjectTypeDefinitionContext context)
         {
-            var docComment = context.comment().LastOrDefault();
-            var desc = docComment != null ? (string)VisitComment(docComment) : null;
+            var docComment = context.description();
+            var desc = docComment != null ? (string)VisitDescription(docComment) : null;
 
             var fields = new List<Field>();
             using (new FieldConsumer(this, fields))
             {
-                var result = base.Visit(context.objectDef());
-                schemaInfo.Types.Add(context.typeName.Text, new TypeInfo(fields, context.typeName.Text, desc));
+                var result = base.Visit(context.fieldsDefinitions());
+                schemaInfo.Types.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc));
                 return result;
             }
         }
-        public override object VisitScalarDef(GraphQLSchemaParser.ScalarDefContext context)
+
+        /// <inheritdoc />
+        public override object VisitScalarTypeDefinition(GraphQLSchemaParser.ScalarTypeDefinitionContext context)
         {
-            var result = base.VisitScalarDef(context);
-            schemaInfo.Scalars.Add(context.typeName.Text);
+            var result = base.VisitScalarTypeDefinition(context);
+            schemaInfo.Scalars.Add(context.NAME().GetText());
             return result;
+        }
+
+        /// <inheritdoc />
+        public override object VisitRootOperationTypeDefinition(GraphQLSchemaParser.RootOperationTypeDefinitionContext context)
+        {
+            var name = context.namedType().GetText();
+            var operation = context.operationType().GetText();
+
+            addFieldsTo.Add(new Field(schemaInfo)
+            {
+                Name = operation,
+                Description = null,
+                TypeName = name,
+                IsArray = false
+            });
+
+            return base.VisitRootOperationTypeDefinition(context);
         }
     }
 }

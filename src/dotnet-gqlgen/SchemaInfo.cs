@@ -32,6 +32,7 @@ namespace dotnet_gqlgen
             Schema = new List<Field>();
             Types = new Dictionary<string, TypeInfo>();
             Inputs = new Dictionary<string, TypeInfo>();
+            Enums = new Dictionary<string, TypeInfo>();
             Scalars = new List<string>();
         }
 
@@ -56,10 +57,11 @@ namespace dotnet_gqlgen
         public Dictionary<string, TypeInfo> Types { get; }
         public Dictionary<string, TypeInfo> Inputs { get; }
         public List<string> Scalars { get; }
+        public Dictionary<string, TypeInfo> Enums { get; }
 
         internal bool HasDotNetType(string typeName)
         {
-            return typeMappings.ContainsKey(typeName) || Types.ContainsKey(typeName) || Inputs.ContainsKey(typeName);
+            return typeMappings.ContainsKey(typeName) || Types.ContainsKey(typeName) || Inputs.ContainsKey(typeName) || Enums.ContainsKey(typeName);
         }
 
         internal string GetDotNetType(string typeName)
@@ -68,6 +70,7 @@ namespace dotnet_gqlgen
                 return typeMappings[typeName];
             if (Types.ContainsKey(typeName))
                 return Types[typeName].Name;
+            if (Enums.ContainsKey(typeName)) return Enums[typeName].Name;
             return Inputs[typeName].Name;
         }
     }
@@ -128,13 +131,13 @@ namespace dotnet_gqlgen
         {
             get
             {
-                return (Args.Count == 0 && !schemaInfo.Types.ContainsKey(TypeName) && !schemaInfo.Inputs.ContainsKey(TypeName)) || schemaInfo.Scalars.Contains(TypeName);
+                return ((Args == null || Args.Count == 0) && !schemaInfo.Types.ContainsKey(TypeName) && !schemaInfo.Inputs.ContainsKey(TypeName)) || schemaInfo.Scalars.Contains(TypeName);
             }
         }
 
         public string ArgsOutput()
         {
-            if (!Args.Any())
+            if (Args == null || !Args.Any())
                 return "";
             return string.Join(", ", Args.Select(a => $"{a.DotNetType} {a.Name}"));
         }

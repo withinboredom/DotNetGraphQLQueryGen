@@ -19,7 +19,7 @@ namespace dotnet_gqlgen
                 var parser = new GraphQLSchemaParser(tokens);
                 parser.BuildParseTree = true;
                 parser.ErrorHandler = new BailErrorStrategy();
-                var tree = parser.schema();
+                var tree = parser.document();
                 var visitor = new SchemaVisitor(typeMappings);
                 // visit each node. it will return a linq expression for each entity requested
                 visitor.Visit(tree);
