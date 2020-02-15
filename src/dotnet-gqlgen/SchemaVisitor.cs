@@ -23,7 +23,7 @@ namespace dotnet_gqlgen
             var docComment = context.description();
             var desc = docComment != null ? (string)VisitDescription(docComment) : null;
             var name = context.NAME().GetText();
-            var args = context.argumentsDefinition() == null ? null : (List<Arg>)VisitArgumentsDefinition(context.argumentsDefinition());
+            var args = context.argumentsDefinition() == null ? null : VisitArgumentsDefinition(context.argumentsDefinition());
             var type = context.type_().GetText();
             var isArray = type[0] == '[';
             type = type.Trim('[', ']');
@@ -32,7 +32,7 @@ namespace dotnet_gqlgen
                 Name = name,
                 TypeName = type,
                 IsArray = isArray,
-                Args = args,
+                Args = (List<Arg>) args,
                 Description = desc,
             });
             return result;
@@ -42,6 +42,35 @@ namespace dotnet_gqlgen
         public override object VisitInputFieldsDefinition(GraphQLSchemaParser.InputFieldsDefinitionContext context)
         {
             return base.VisitInputFieldsDefinition(context);
+        }
+
+        public override object VisitArgumentsDefinition(GraphQLSchemaParser.ArgumentsDefinitionContext context)
+        {
+            var args = new List<Arg>();
+
+            if (context != null)
+            {
+                foreach (var arg in context.inputValueDefinition())
+                {
+                    var doc = arg.description();
+                    var desc = doc == null ? null : (string)VisitDescription(doc);
+                    var name = arg.NAME().GetText();
+                    var type = arg.type_().typeName().GetText();
+                    var isRequired = arg.type_().nonNullType() != null;
+                    var isArray = arg.type_().listType() != null;
+
+                    args.Add(new Arg(this.schemaInfo)
+                    {
+                        Description = desc,
+                        Name = name,
+                        Required = isRequired,
+                        TypeName = type,
+                        IsArray = isArray,
+                    });
+                }
+            }
+
+            return args;
         }
 
         /// <inheritdoc />
@@ -59,7 +88,7 @@ namespace dotnet_gqlgen
                 Name = name,
                 Description = desc,
                 TypeName = type,
-                IsArray = isArray
+                IsArray = isArray,
             });
 
             return base.VisitInputValueDefinition(context);
