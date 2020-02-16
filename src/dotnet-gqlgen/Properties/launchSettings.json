@@ -3,7 +3,7 @@
     "dotnet-gqlgen": {
       "commandName": "Project",
       "commandLineArgs": "schema.graphql -m Date=DateTime",
-      "workingDirectory": "C:\\Users\\lande\\source\\repos\\WWFuncsAPI\\WordsWisdom.Client"
+      "workingDirectory": "C:\\Users\\lande\\source\\repos\\withinboredom\\wordswisdom\\WordsWisdom.Client"
     }
   }
 }
