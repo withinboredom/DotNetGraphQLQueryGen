@@ -1,14 +1,29 @@
 using System;
 
-namespace DotNetGqlClient
+namespace dotnet_gqlgen
 {
-    public class GqlFieldNameAttribute : Attribute
+    /// <summary>
+    ///     A name attribute
+    /// </summary>
+    /// <seealso cref="T:System.Attribute" />
+    public sealed class GqlFieldNameAttribute : Attribute
     {
-        public string Name { get; }
-
+        /// <summary>
+        ///     Initializes a new instance of the
+        ///     <see cref="GqlFieldNameAttribute" /> class.
+        /// </summary>
+        /// <param name="name">The name.</param>
         public GqlFieldNameAttribute(string name)
         {
-            this.Name = name;
+            Name = name;
         }
+
+        /// <summary>
+        ///     Gets the name.
+        /// </summary>
+        /// <value>
+        ///     The name.
+        /// </value>
+        public string Name { get; }
     }
 }

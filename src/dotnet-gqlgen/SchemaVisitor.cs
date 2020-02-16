@@ -5,18 +5,44 @@ using GraphQLSchema.Grammer;
 
 namespace dotnet_gqlgen
 {
+    /// <summary>
+    /// Visit the schema
+    /// </summary>
+    /// <seealso cref="GraphQLSchema.Grammer.GraphQLSchemaBaseVisitor{System.Object}" />
     internal class SchemaVisitor : GraphQLSchemaBaseVisitor<object>
     {
-        private readonly SchemaInfo schemaInfo;
-        private List<Field> addFieldsTo;
+        /// <summary>
+        /// The add fields to
+        /// </summary>
+        private List<Field> _addFieldsTo;
 
-        public SchemaInfo SchemaInfo => schemaInfo;
+        /// <summary>
+        /// Gets the schema information.
+        /// </summary>
+        /// <value>
+        /// The schema information.
+        /// </value>
+        public SchemaInfo SchemaInfo { get; }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchemaVisitor"/> class.
+        /// </summary>
+        /// <param name="typeMappings">The type mappings.</param>
         public SchemaVisitor(Dictionary<string, string> typeMappings)
         {
-            this.schemaInfo = new SchemaInfo(typeMappings);
+            SchemaInfo = new SchemaInfo(typeMappings);
         }
 
+        /// <summary>
+        /// Visit a parse tree produced by <see cref="M:GraphQLSchema.Grammer.GraphQLSchemaParser.fieldsDefinition" />.
+        /// <para>
+        /// The default implementation returns the result of calling <see cref="M:Antlr4.Runtime.Tree.AbstractParseTreeVisitor`1.VisitChildren(Antlr4.Runtime.Tree.IRuleNode)" />
+        /// on <paramref name="context" />.
+        /// </para>
+        /// </summary>
+        /// <param name="context">The parse tree.</param>
+        /// <returns></returns>
+        /// <return>The visitor result.</return>
         public override object VisitFieldsDefinition(GraphQLSchemaParser.FieldsDefinitionContext context)
         {
             var result = base.VisitFieldsDefinition(context);
@@ -27,7 +53,7 @@ namespace dotnet_gqlgen
             var type = context.type_().GetText();
             var isArray = type[0] == '[';
             type = type.Trim('[', ']');
-            addFieldsTo.Add(new Field(this.schemaInfo)
+            _addFieldsTo.Add(new Field(SchemaInfo)
             {
                 Name = name,
                 TypeName = type,
@@ -38,10 +64,39 @@ namespace dotnet_gqlgen
             return result;
         }
 
-        /// <inheritdoc />
-        public override object VisitInputFieldsDefinition(GraphQLSchemaParser.InputFieldsDefinitionContext context)
+        /// <summary>
+        /// Visit a parse tree produced by <see cref="M:GraphQLSchema.Grammer.GraphQLSchemaParser.argumentsDefinition" />.
+        /// <para>
+        /// The default implementation returns the result of calling <see cref="M:Antlr4.Runtime.Tree.AbstractParseTreeVisitor`1.VisitChildren(Antlr4.Runtime.Tree.IRuleNode)" />
+        /// on <paramref name="context" />.
+        /// </para>
+        /// </summary>
+        /// <param name="context">The parse tree.</param>
+        /// <returns></returns>
+        /// <return>The visitor result.</return>
+        public override object VisitArgumentsDefinition(GraphQLSchemaParser.ArgumentsDefinitionContext context)
         {
-            return base.VisitInputFieldsDefinition(context);
+            var args = new List<Arg>();
+
+            if (context == null) return args;
+            args.AddRange(
+                from arg in context.inputValueDefinition()
+                let doc = arg.description()
+                let desc = doc == null ? null : (string) VisitDescription(doc)
+                let name = arg.NAME().GetText()
+                let type = arg.type_().typeName().GetText()
+                let isRequired = arg.type_().nonNullType() != null
+                let isArray = arg.type_().listType() != null
+                select new Arg(SchemaInfo)
+                {
+                    Description = desc,
+                    Name = name,
+                    Required = isRequired,
+                    TypeName = type,
+                    IsArray = isArray,
+                });
+
+            return args;
         }
 
         /// <inheritdoc />
@@ -54,7 +109,7 @@ namespace dotnet_gqlgen
             var isRequired = context.type_().nonNullType() != null;
             var isArray = context.type_().listType() != null;
 
-            addFieldsTo.Add(new Field(schemaInfo)
+            _addFieldsTo.Add(new Field(SchemaInfo)
             {
                 Name = name,
                 Description = desc,
@@ -69,28 +124,31 @@ namespace dotnet_gqlgen
         public override object VisitArguments(GraphQLSchemaParser.ArgumentsContext context)
         {
             var args = new List<Arg>();
-            if (context != null)
+            if (context == null) return args;
+
+            foreach (var arg in context.argument())
             {
-                foreach (var arg in context.argument())
+                var type = arg.valueOrVariable().value().GetText();
+                var isArray = type[0] == '[';
+                type = type.Trim('[', ']');
+                args.Add(new Arg(SchemaInfo)
                 {
-                    var type = arg.valueOrVariable().value().GetText();
-                    var isArray = type[0] == '[';
-                    type = type.Trim('[', ']');
-                    args.Add(new Arg(this.schemaInfo)
-                    {
-                        Name = arg.NAME().GetText(),
-                        TypeName = type,
-                        Required = arg != null,
-                        IsArray = isArray
-                    });
-                }
+                    Name = arg.NAME().GetText(),
+                    TypeName = type,
+                    Required = true,
+                    IsArray = isArray
+                });
             }
             return args;
         }
 
+        /// <summary>
+        /// Sets the field consumer.
+        /// </summary>
+        /// <param name="item">The item.</param>
         internal void SetFieldConsumer(List<Field> item)
         {
-            this.addFieldsTo = item;
+            _addFieldsTo = item;
         }
 
         /// <inheritdoc />
@@ -102,7 +160,7 @@ namespace dotnet_gqlgen
         /// <inheritdoc />
         public override object VisitSchemaDefinition(GraphQLSchemaParser.SchemaDefinitionContext context)
         {
-            using (new FieldConsumer(this, schemaInfo.Schema))
+            using (new FieldConsumer(this, SchemaInfo.Schema))
             {
                 return base.Visit(context.rootOperationTypeDefinitionList());
             }
@@ -111,7 +169,7 @@ namespace dotnet_gqlgen
         /// <inheritdoc />
         public override object VisitEnumValue(GraphQLSchemaParser.EnumValueContext context)
         {
-            addFieldsTo.Add(new Field(schemaInfo) {Name = context.NAME().GetText()});
+            _addFieldsTo.Add(new Field(SchemaInfo) {Name = context.NAME().GetText()});
             return base.VisitEnumValue(context);
         }
 
@@ -125,7 +183,7 @@ namespace dotnet_gqlgen
             using (new FieldConsumer(this, nums))
             {
                 var result = base.VisitEnumTypeDefinition(context);
-                schemaInfo.Enums.Add(context.NAME().GetText(), new TypeInfo(nums, context.NAME().GetText(), desc, isInput: false));
+                SchemaInfo.Enums.Add(context.NAME().GetText(), new TypeInfo(nums, context.NAME().GetText(), desc));
                 return result;
             }
         }
@@ -140,7 +198,7 @@ namespace dotnet_gqlgen
             using (new FieldConsumer(this, fields))
             {
                 var result = base.Visit(context.inputFieldsDefinition());
-                schemaInfo.Inputs.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc, isInput:true));
+                SchemaInfo.Inputs.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc));
                 return result;
             }
         }
@@ -155,7 +213,7 @@ namespace dotnet_gqlgen
             using (new FieldConsumer(this, fields))
             {
                 var result = base.Visit(context.fieldsDefinitions());
-                schemaInfo.Types.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc));
+                SchemaInfo.Types.Add(context.NAME().GetText(), new TypeInfo(fields, context.NAME().GetText(), desc));
                 return result;
             }
         }
@@ -164,7 +222,7 @@ namespace dotnet_gqlgen
         public override object VisitScalarTypeDefinition(GraphQLSchemaParser.ScalarTypeDefinitionContext context)
         {
             var result = base.VisitScalarTypeDefinition(context);
-            schemaInfo.Scalars.Add(context.NAME().GetText());
+            SchemaInfo.Scalars.Add(context.NAME().GetText());
             return result;
         }
 
@@ -174,7 +232,7 @@ namespace dotnet_gqlgen
             var name = context.namedType().GetText();
             var operation = context.operationType().GetText();
 
-            addFieldsTo.Add(new Field(schemaInfo)
+            _addFieldsTo.Add(new Field(SchemaInfo)
             {
                 Name = operation,
                 Description = null,

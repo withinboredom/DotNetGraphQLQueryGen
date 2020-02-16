@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using DotNetGqlClient;
+using dotnet_gqlgen;
 using Generated;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace CoreData.Model.Tests
 {
-    public class TestClient : BaseGraphQLClient
+    public class TestClient : BaseGraphQlClient
     {
         internal string MakeQuery<TReturn>(Expression<Func<RootQuery, TReturn>> p, bool mutation = false)
         {

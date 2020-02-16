@@ -5,10 +5,22 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 
-namespace DotNetGqlClient
+namespace dotnet_gqlgen
 {
-    public abstract class BaseGraphQLClient
+    /// <summary>
+    /// Base query type
+    /// </summary>
+    public abstract class BaseGraphQlClient
     {
+        /// <summary>
+        /// Make a query string
+        /// </summary>
+        /// <typeparam name="TSchema"></typeparam>
+        /// <typeparam name="TQuery"></typeparam>
+        /// <param name="query"></param>
+        /// <param name="mutation"></param>
+        /// <returns></returns>
+        /// <exception cref="T:System.ArgumentException">Condition.</exception>
         protected string MakeQuery<TSchema, TQuery>(Expression<Func<TSchema, TQuery>> query, bool mutation = false)
         {
             var gql = new StringBuilder();
@@ -21,75 +33,80 @@ namespace DotNetGqlClient
             if (lambda.Body.NodeType != ExpressionType.New && lambda.Body.NodeType != ExpressionType.MemberInit)
                 throw new ArgumentException($"LambdaExpression must return a NewExpression or MemberInitExpression");
 
-            GetObjectSelection(gql, lambda.Body);
+            BaseGraphQlClient.GetObjectSelection(gql, lambda.Body);
 
             gql.Append(@"}");
             return gql.ToString();
         }
 
+        /// <summary>
+        /// Get's an object
+        /// </summary>
+        /// <param name="gql"></param>
+        /// <param name="exp"></param>
         private static void GetObjectSelection(StringBuilder gql, Expression exp)
         {
             if (exp.NodeType == ExpressionType.New)
             {
                 var newExp = (NewExpression)exp;
-                for (int i = 0; i < newExp.Arguments.Count; i++)
+                for (var i = 0; i < newExp.Arguments.Count; i++)
                 {
                     var fieldVal = newExp.Arguments[i];
                     var fieldProp = newExp.Members[i];
-                    gql.AppendLine($"{fieldProp.Name}: {GetFieldSelection(fieldVal)}");
+                    gql.AppendLine($"{fieldProp.Name}: {BaseGraphQlClient.GetFieldSelection(fieldVal)}");
                 }
             }
             else
             {
                 var mi = (MemberInitExpression)exp;
-                for (int i = 0; i < mi.Bindings.Count; i++)
+                foreach (var binding in mi.Bindings)
                 {
-                    var valExp = ((MemberAssignment)mi.Bindings[i]).Expression;
-                    var fieldVal = mi.Bindings[i].Member;
-                    gql.AppendLine($"{mi.Bindings[i].Member.Name}: {GetFieldSelection(valExp)}");
+                    var valExp = ((MemberAssignment)binding).Expression;
+                    gql.AppendLine($"{binding.Member.Name}: {BaseGraphQlClient.GetFieldSelection(valExp)}");
                 }
             }
         }
 
+        /// <summary>
+        /// Get a field
+        /// </summary>
+        /// <param name="field"></param>
+        /// <returns></returns>
         private static string GetFieldSelection(Expression field)
         {
-            if (field.NodeType == ExpressionType.MemberAccess)
-            {
-                var member = ((MemberExpression)field).Member;
-                var attribute = member.GetCustomAttributes(typeof(GqlFieldNameAttribute)).Cast<GqlFieldNameAttribute>().FirstOrDefault();
-                if (attribute != null)
-                    return attribute.Name;
-                return member.Name;
-            }
-            else if (field.NodeType == ExpressionType.Call)
-            {
-                var call = (MethodCallExpression)field;
-                return GetSelectionFromMethod(call);
-            }
-            else if (field.NodeType == ExpressionType.Quote)
-            {
-                return GetFieldSelection(((UnaryExpression)field).Operand);
-            }
-            else
-            {
-                throw new ArgumentException($"Field expression should be a call or member access expression", "field");
+            switch (field.NodeType) {
+                case ExpressionType.MemberAccess: {
+                    var member = ((MemberExpression)field).Member;
+                    var attribute = member.GetCustomAttributes(typeof(GqlFieldNameAttribute)).Cast<GqlFieldNameAttribute>().FirstOrDefault();
+                    return attribute != null ? attribute.Name : member.Name;
+                }
+                case ExpressionType.Call: {
+                    var call = (MethodCallExpression)field;
+                    return BaseGraphQlClient.GetSelectionFromMethod(call);
+                }
+                case ExpressionType.Quote:
+                    return BaseGraphQlClient.GetFieldSelection(((UnaryExpression)field).Operand);
+                default:
+                    throw new ArgumentException($"Field expression should be a call or member access expression", "field");
             }
         }
 
+        /// <summary>
+        /// Get a method
+        /// </summary>
+        /// <param name="call"></param>
+        /// <returns></returns>
         private static string GetSelectionFromMethod(MethodCallExpression call)
         {
             var select = new StringBuilder();
 
             var attribute = call.Method.GetCustomAttributes(typeof(GqlFieldNameAttribute)).Cast<GqlFieldNameAttribute>().FirstOrDefault();
-            if (attribute != null)
-                select.Append(attribute.Name);
-            else
-                select.Append(call.Method.Name);
+            @select.Append(attribute != null ? attribute.Name : call.Method.Name);
 
             if (call.Arguments.Count > 1)
             {
                 var argVals = new List<object>();
-                for (int i = 0; i < call.Arguments.Count - 1; i++)
+                for (var i = 0; i < call.Arguments.Count - 1; i++)
                 {
                     var arg = call.Arguments.ElementAt(i);
                     var param = call.Method.GetParameters().ElementAt(i);
@@ -100,31 +117,26 @@ namespace DotNetGqlClient
                         arg = ((UnaryExpression)arg).Operand;
                     }
 
-                    if (arg.NodeType == ExpressionType.Constant)
-                    {
-                        var constArg = (ConstantExpression)arg;
-                        argType = constArg.Type;
-                        argVal = constArg.Value;
-                    }
-                    else if (arg.NodeType == ExpressionType.MemberAccess)
-                    {
-                        var ma = (MemberExpression)arg;
-                        var ce = (ConstantExpression)ma.Expression;
-                        argType = ma.Type;
-                        if (ma.Member.MemberType == MemberTypes.Field)
-                            argVal = ((FieldInfo)ma.Member).GetValue(ce.Value);
-                        else
-                            argVal = ((PropertyInfo)ma.Member).GetValue(ce.Value);
-                    }
-                    else if (arg.NodeType == ExpressionType.New)
-                    {
-                        argVal = Expression.Lambda(arg).Compile().DynamicInvoke();
-                        argType = argVal.GetType();
-                    }
-
-                    else
-                    {
-                        throw new Exception($"Unsupported argument type {arg.NodeType}");
+                    switch (arg.NodeType) {
+                        case ExpressionType.Constant: {
+                            var constArg = (ConstantExpression)arg;
+                            argType = constArg.Type;
+                            argVal = constArg.Value;
+                            break;
+                        }
+                        case ExpressionType.MemberAccess: {
+                            var ma = (MemberExpression)arg;
+                            var ce = (ConstantExpression)ma.Expression;
+                            argType = ma.Type;
+                            argVal = ma.Member.MemberType == MemberTypes.Field ? ((FieldInfo)ma.Member).GetValue(ce.Value) : ((PropertyInfo)ma.Member).GetValue(ce.Value);
+                            break;
+                        }
+                        case ExpressionType.New:
+                            argVal = Expression.Lambda(arg).Compile().DynamicInvoke();
+                            argType = argVal.GetType();
+                            break;
+                        default:
+                            throw new Exception($"Unsupported argument type {arg.NodeType}");
                     }
                     if (argVal == null)
                         continue;
@@ -147,14 +159,12 @@ namespace DotNetGqlClient
             select.Append(" {\n");
             if (call.Arguments.Count == 0)
             {
-                if (call.Method.ReturnType.GetInterfaces().Select(i => i.GetTypeInfo().GetGenericTypeDefinition()).Contains(typeof(IEnumerable<>)))
-                {
-                    select.Append(GetDefaultSelection(call.Method.ReturnType.GetGenericArguments().First()));
-                }
-                else
-                {
-                    select.Append(GetDefaultSelection(call.Method.ReturnType));
-                }
+                @select.Append(
+                    call.Method.ReturnType.GetInterfaces()
+                        .Select(i => i.GetTypeInfo().GetGenericTypeDefinition())
+                        .Contains(typeof(IEnumerable<>))
+                        ? BaseGraphQlClient.GetDefaultSelection(call.Method.ReturnType.GetGenericArguments().First())
+                        : BaseGraphQlClient.GetDefaultSelection(call.Method.ReturnType));
             }
             else
             {
@@ -163,12 +173,17 @@ namespace DotNetGqlClient
                     exp = ((UnaryExpression)exp).Operand;
                 if (exp.NodeType == ExpressionType.Lambda)
                     exp = ((LambdaExpression)exp).Body;
-                GetObjectSelection(select, exp);
+                BaseGraphQlClient.GetObjectSelection(select, exp);
             }
             select.Append("}");
             return select.ToString();
         }
 
+        /// <summary>
+        /// Default selection
+        /// </summary>
+        /// <param name="returnType"></param>
+        /// <returns></returns>
         private static string GetDefaultSelection(Type returnType)
         {
             var select = new StringBuilder();

@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq.Expressions;
-using DotNetGqlClient;
+using dotnet_gqlgen;
 
 /// <summary>
 /// Generated interfaces for making GraphQL API calls with a typed interface.
