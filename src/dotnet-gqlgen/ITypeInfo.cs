@@ -1,9 +1,7 @@
 namespace dotnet_gqlgen
 {
     /// <summary>
-    /// A type info
+    ///     A type info
     /// </summary>
-    internal interface ITypeInfo
-    {
-    }
+    internal interface ITypeInfo { }
 }

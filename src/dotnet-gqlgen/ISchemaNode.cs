@@ -1,9 +1,7 @@
 namespace dotnet_gqlgen
 {
     /// <summary>
-    /// A schema node
+    ///     A schema node
     /// </summary>
-    internal interface ISchemaNode
-    {
-    }
+    internal interface ISchemaNode { }
 }

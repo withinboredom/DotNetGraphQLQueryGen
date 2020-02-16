@@ -8,6 +8,33 @@ namespace DotNetGraphQLQueryGen.Tests
     public class VisitorTests
     {
         [Fact]
+        public void TestSchemaMutationType()
+        {
+            var results = SchemaCompiler.Compile(File.ReadAllText("../../../schema.graphql"));
+            var mutationTypeName = results.Schema.First(s => s.Name == "mutation").TypeName;
+
+            var mutType = results.Types[mutationTypeName];
+            Assert.Equal(3, mutType.Fields.Count);
+            Assert.Equal("addMovie", mutType.Fields.ElementAt(0).Name);
+            Assert.Equal("Add a new Movie object", mutType.Fields.ElementAt(0).Description);
+            Assert.Equal("Movie", mutType.Fields.ElementAt(0).TypeName);
+            Assert.False(mutType.Fields.ElementAt(0).IsArray);
+
+            Assert.Equal(5, mutType.Fields.ElementAt(0).Args.Count);
+            Assert.Equal("name", mutType.Fields.ElementAt(0).Args.ElementAt(0).Name);
+            Assert.True(mutType.Fields.ElementAt(0).Args.ElementAt(0).Required);
+            Assert.Equal("String", mutType.Fields.ElementAt(0).Args.ElementAt(0).TypeName);
+            Assert.Equal("rating", mutType.Fields.ElementAt(0).Args.ElementAt(1).Name);
+            Assert.Equal("Float", mutType.Fields.ElementAt(0).Args.ElementAt(1).TypeName);
+            Assert.Equal("details", mutType.Fields.ElementAt(0).Args.ElementAt(2).Name);
+            Assert.Equal("Detail", mutType.Fields.ElementAt(0).Args.ElementAt(2).TypeName);
+            Assert.True(mutType.Fields.ElementAt(0).Args.ElementAt(2).IsArray);
+            Assert.Equal("released", mutType.Fields.ElementAt(0).Args.ElementAt(4).Name);
+            Assert.Equal("Date", mutType.Fields.ElementAt(0).Args.ElementAt(4).TypeName);
+            Assert.False(mutType.Fields.ElementAt(0).Args.ElementAt(4).IsArray);
+        }
+
+        [Fact]
         public void TestSchemaQueryRequired()
         {
             Assert.Throws<SchemaException>(() => SchemaCompiler.Compile("schema { mutation: Mutation }"));
@@ -34,33 +61,6 @@ namespace DotNetGraphQLQueryGen.Tests
             Assert.Equal("id", queryType.Fields.ElementAt(6).Args.First().Name);
             Assert.Equal("Int", queryType.Fields.ElementAt(6).Args.First().TypeName);
             Assert.True(queryType.Fields.ElementAt(6).Args.First().Required);
-        }
-
-        [Fact]
-        public void TestSchemaMutationType()
-        {
-            var results = SchemaCompiler.Compile(File.ReadAllText("../../../schema.graphql"));
-            var mutationTypeName = results.Schema.First(s => s.Name == "mutation").TypeName;
-
-            var mutType = results.Types[mutationTypeName];
-            Assert.Equal(3, mutType.Fields.Count);
-            Assert.Equal("addMovie", mutType.Fields.ElementAt(0).Name);
-            Assert.Equal("Add a new Movie object", mutType.Fields.ElementAt(0).Description);
-            Assert.Equal("Movie", mutType.Fields.ElementAt(0).TypeName);
-            Assert.False(mutType.Fields.ElementAt(0).IsArray);
-
-            Assert.Equal(5, mutType.Fields.ElementAt(0).Args.Count);
-            Assert.Equal("name", mutType.Fields.ElementAt(0).Args.ElementAt(0).Name);
-            Assert.True(mutType.Fields.ElementAt(0).Args.ElementAt(0).Required);
-            Assert.Equal("String", mutType.Fields.ElementAt(0).Args.ElementAt(0).TypeName);
-            Assert.Equal("rating", mutType.Fields.ElementAt(0).Args.ElementAt(1).Name);
-            Assert.Equal("Float", mutType.Fields.ElementAt(0).Args.ElementAt(1).TypeName);
-            Assert.Equal("details", mutType.Fields.ElementAt(0).Args.ElementAt(2).Name);
-            Assert.Equal("Detail", mutType.Fields.ElementAt(0).Args.ElementAt(2).TypeName);
-            Assert.True(mutType.Fields.ElementAt(0).Args.ElementAt(2).IsArray);
-            Assert.Equal("released", mutType.Fields.ElementAt(0).Args.ElementAt(4).Name);
-            Assert.Equal("Date", mutType.Fields.ElementAt(0).Args.ElementAt(4).TypeName);
-            Assert.False(mutType.Fields.ElementAt(0).Args.ElementAt(4).IsArray);
         }
 
         [Fact]

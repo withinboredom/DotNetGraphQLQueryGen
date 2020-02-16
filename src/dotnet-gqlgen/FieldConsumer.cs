@@ -20,8 +20,10 @@ namespace dotnet_gqlgen
         private List<Field> _schema;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="FieldConsumer" />
-        ///     class.
+        ///     <para>
+        ///         Initializes a new instance of the <see cref="FieldConsumer" />
+        ///     </para>
+        ///     <para>class.</para>
         /// </summary>
         /// <param name="schemaVisitor">
         ///     The <paramref name="schema" /> visitor.

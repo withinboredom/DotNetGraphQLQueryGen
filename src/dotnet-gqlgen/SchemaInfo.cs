@@ -5,14 +5,15 @@ using System.Linq;
 namespace dotnet_gqlgen
 {
     /// <summary>
-    /// Schema information class
+    ///     Schema information class
     /// </summary>
     public class SchemaInfo
     {
         /// <summary>
-        /// The type mappings
+        ///     The type mappings
         /// </summary>
-        private readonly Dictionary<string, string> _typeMappings = new Dictionary<string, string> {
+        private readonly Dictionary<string, string> _typeMappings = new Dictionary<string, string>
+        {
             {"String", "string"},
             {"ID", "string"},
             {"Int", "int?"},
@@ -22,23 +23,22 @@ namespace dotnet_gqlgen
             {"ID!", "string"},
             {"Int!", "int"},
             {"Float!", "double"},
-            {"Boolean!", "bool"},
+            {"Boolean!", "bool"}
         };
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="SchemaInfo"/> class.
+        ///     Initializes a new instance of the <see cref="SchemaInfo" /> class.
         /// </summary>
         /// <param name="typeMappings">The type mappings.</param>
         public SchemaInfo(Dictionary<string, string> typeMappings)
         {
             if (typeMappings != null)
-            {
                 foreach (var (key, value) in typeMappings)
                 {
                     // overrides
                     _typeMappings[key] = value;
                 }
-            }
+
             Schema = new List<Field>();
             Types = new Dictionary<string, TypeInfo>();
             Inputs = new Dictionary<string, TypeInfo>();
@@ -47,17 +47,17 @@ namespace dotnet_gqlgen
         }
 
         /// <summary>
-        /// The schema
+        ///     The schema
         /// </summary>
         public List<Field> Schema { get; }
 
         /// <summary>
-        /// Return the query type info.
+        ///     Return the query type info.
         /// </summary>
         public TypeInfo Query => Types[Schema.First(f => f.Name == "query").TypeName];
 
         /// <summary>
-        /// Return the mutation type info.
+        ///     Return the mutation type info.
         /// </summary>
         public TypeInfo Mutation
         {
@@ -69,57 +69,60 @@ namespace dotnet_gqlgen
         }
 
         /// <summary>
-        /// Types
+        ///     <see cref="Types" />
         /// </summary>
         public Dictionary<string, TypeInfo> Types { get; }
 
         /// <summary>
-        /// Inputs
+        ///     <see cref="Inputs" />
         /// </summary>
         public Dictionary<string, TypeInfo> Inputs { get; }
 
         /// <summary>
-        /// Scalars
+        ///     <see cref="Scalars" />
         /// </summary>
         public List<string> Scalars { get; }
 
         /// <summary>
-        /// Enums
+        ///     <see cref="Enums" />
         /// </summary>
         public Dictionary<string, TypeInfo> Enums { get; }
 
         /// <summary>
-        /// Whether it has a dot net type
+        ///     Whether it has a dot net type
         /// </summary>
         /// <param name="typeName"></param>
-        /// <returns></returns>
+        /// <returns>
+        /// </returns>
         internal bool HasDotNetType(string typeName)
         {
-            return _typeMappings.ContainsKey(typeName) || Types.ContainsKey(typeName) || Inputs.ContainsKey(typeName) || Enums.ContainsKey(typeName);
+            return _typeMappings.ContainsKey(typeName) ||
+                   Types.ContainsKey(typeName) ||
+                   Inputs.ContainsKey(typeName) ||
+                   Enums.ContainsKey(typeName);
         }
 
         /// <summary>
-        /// Get the dot net type
+        ///     Get the dot net type
         /// </summary>
         /// <param name="typeName"></param>
-        /// <returns></returns>
+        /// <returns>
+        /// </returns>
         internal string GetDotNetType(string typeName)
         {
-            if (_typeMappings.ContainsKey(typeName))
-                return _typeMappings[typeName];
-            if (Types.ContainsKey(typeName))
-                return Types[typeName].Name;
+            if (_typeMappings.ContainsKey(typeName)) return _typeMappings[typeName];
+            if (Types.ContainsKey(typeName)) return Types[typeName].Name;
             return Enums.ContainsKey(typeName) ? Enums[typeName].Name : Inputs[typeName].Name;
         }
     }
 
     /// <summary>
-    /// Type information
+    ///     <see cref="Type" /> information
     /// </summary>
     public class TypeInfo
     {
         /// <summary>
-        /// Create a new type information
+        ///     Create a new type information
         /// </summary>
         /// <param name="fields"></param>
         /// <param name="name"></param>
@@ -134,38 +137,38 @@ namespace dotnet_gqlgen
         }
 
         /// <summary>
-        /// The fields
+        ///     The fields
         /// </summary>
         public List<Field> Fields { get; }
 
         /// <summary>
-        /// The name
+        ///     The name
         /// </summary>
         public string Name { get; }
 
         /// <summary>
-        /// The description
+        ///     The description
         /// </summary>
         public string Description { get; }
 
         /// <summary>
-        /// The input state
+        ///     The input state
         /// </summary>
         public bool IsInput { get; }
     }
 
     /// <summary>
-    /// A field
+    ///     A field
     /// </summary>
     public class Field
     {
         /// <summary>
-        /// The schema information
+        ///     The schema information
         /// </summary>
         private readonly SchemaInfo _schemaInfo;
 
         /// <summary>
-        /// The field
+        ///     The field
         /// </summary>
         /// <param name="schemaInfo"></param>
         public Field(SchemaInfo schemaInfo)
@@ -175,96 +178,98 @@ namespace dotnet_gqlgen
         }
 
         /// <summary>
-        /// The name
+        ///     The name
         /// </summary>
         public string Name { get; set; }
 
         /// <summary>
-        /// The type name
+        ///     The type name
         /// </summary>
         public string TypeName { get; set; }
 
         /// <summary>
-        /// Is this an array
+        ///     Is this an array
         /// </summary>
         public bool IsArray { get; set; }
 
         /// <summary>
-        /// The args
+        ///     The args
         /// </summary>
         public List<Arg> Args { get; set; }
 
         /// <summary>
-        /// The description
+        ///     The description
         /// </summary>
         public string Description { get; set; }
 
         /// <summary>
-        /// The implementation name
+        ///     The implementation name
         /// </summary>
         public string DotNetName => Name[0].ToString().ToUpper() + string.Join("", Name.Skip(1));
 
         /// <summary>
-        /// The implementation type
+        ///     The implementation type
         /// </summary>
         public string DotNetType => IsArray ? $"List<{DotNetTypeSingle}>" : DotNetTypeSingle;
 
         /// <summary>
-        /// The single type
+        ///     The single type
         /// </summary>
         public string DotNetTypeSingle
         {
             get
             {
                 if (!_schemaInfo.HasDotNetType(TypeName))
-                {
-                    throw new SchemaException($"Unknown dotnet type for schema type '{TypeName}'. Please provide a mapping for any custom scalar types defined in the schema");
-                }
+                    throw new SchemaException(
+                        $"Unknown dotnet type for schema type '{TypeName}'. Please provide a mapping for any custom scalar types defined in the schema");
                 return _schemaInfo.GetDotNetType(TypeName);
             }
         }
 
         /// <summary>
-        /// Should this be a property
+        ///     Should this be a property
         /// </summary>
-        public bool ShouldBeProperty => ((Args == null || Args.Count == 0) && !_schemaInfo.Types.ContainsKey(TypeName) && !_schemaInfo.Inputs.ContainsKey(TypeName)) || _schemaInfo.Scalars.Contains(TypeName);
+        public bool ShouldBeProperty =>
+            ((Args == null || Args.Count == 0) &&
+             !_schemaInfo.Types.ContainsKey(TypeName) &&
+             !_schemaInfo.Inputs.ContainsKey(TypeName)) ||
+            _schemaInfo.Scalars.Contains(TypeName);
 
         /// <summary>
-        /// The args output
+        ///     The args output
         /// </summary>
-        /// <returns></returns>
+        /// <returns>
+        /// </returns>
         public string ArgsOutput()
         {
-            if (Args == null || !Args.Any())
-                return "";
+            if (Args == null || !Args.Any()) return "";
             return string.Join(", ", Args.Select(a => $"{a.DotNetType} {a.Name}"));
         }
 
         /// <summary>
-        /// Make this a string
+        ///     Make this a string
         /// </summary>
-        /// <returns></returns>
+        /// <returns>
+        /// </returns>
         public override string ToString()
         {
-            return $"{Name}:{(IsArray ? '[' + TypeName + ']': TypeName)}";
+            return $"{Name}:{(IsArray ? '[' + TypeName + ']' : TypeName)}";
         }
     }
 
     /// <summary>
-    /// An argument
+    ///     An argument
     /// </summary>
     public class Arg : Field
     {
         /// <summary>
-        /// Init the arg
+        ///     Init the arg
         /// </summary>
         /// <param name="schemaInfo"></param>
-        public Arg(SchemaInfo schemaInfo) : base(schemaInfo)
-        {
-        }
+        public Arg(SchemaInfo schemaInfo) : base(schemaInfo) { }
 
         /// <summary>
-        /// Whether this is required
+        ///     Whether this is required
         /// </summary>
 
         public bool Required { get; set; }
